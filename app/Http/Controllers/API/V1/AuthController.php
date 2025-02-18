@@ -18,30 +18,35 @@ class AuthController extends Controller
      * @param  RegisterRequest $request
      * @return mixed
      */
-    public function register(RegisterRequest $request)
-    {
-
-        $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'gender' => $request->gender,
-            'specialist' => $request->specialist,
-            'birthday' => $request->birthday,
-            'status' => $request->status,
-            'type' => $request->type,
-            'address' => $request->address,
-            'email' => $request->email,
-            'mobile' => $request->mobile,
-            'password' => bcrypt($request->password),
-        ]);
-
-        $token = $user->createToken('Token-Login')->accessToken;
-
-        $user->update(['remember_token' => $token]);
-
-
-        return $this->respondWithItem(new UserResource($user));
-    }
+ 
+        public function register(RegisterRequest $request)
+        {
+            // Check if email already exists
+            $existingUser = User::where('email', $request->email)->first();
+            if ($existingUser) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Email already exists');
+            }
+    
+            $user = User::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'gender' => $request->gender,
+                'specialist' => $request->specialist,
+                'birthday' => $request->birthday,
+                'status' => $request->status,
+                'type' => $request->type,
+                'address' => $request->address,
+                'email' => $request->email,
+                'mobile' => $request->mobile,
+                'password' => bcrypt($request->password),
+            ]);
+    
+            $token = $user->createToken('Token-Login')->accessToken;
+    
+            $user->update(['remember_token' => $token]);
+    
+            return $this->respondWithItem(new UserResource($user));
+        }
 
     /**
      * Login
@@ -50,23 +55,29 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request)
     {
+        // Check if user exists first
+        $user = User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('User not found');
+        }
 
         if (!Auth::attempt($request->only('email', 'password'))) {
-
-            return $this->errorStatus(__('Unauthorized'));
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException('Invalid password');
         }
+
         $user = Auth::user();
 
         $oldUser = User::where('device_token', $request->device_token)->get();
       
         if ($oldUser) {
-         User::where('device_token', $request->device_token)
-         ->where('email','!=',$request->email)->update([
-            'device_token' => 0,
-         ]);
-
-          
+            User::where('device_token', $request->device_token)
+                ->where('email','!=',$request->email)
+                ->update([
+                    'device_token' => 0,
+                ]);
         }
+        
         $token = $user->createToken('Token-Login')->accessToken;
 
         $user->update([
@@ -76,7 +87,6 @@ class AuthController extends Controller
 
         return $this->respondWithItem(new UserResource($user));
     }
-
     public function show(Request $request)
     {
         $user = User::find($request->user_id);
