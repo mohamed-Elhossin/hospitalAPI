@@ -30,36 +30,43 @@ class CaseController extends Controller
      */
     public function index()
     {
-
         if (Auth::user()->type == ConstantController::DOCTOR) {
-
             $calls = Call::where('doctor_id', Auth::id())
-                ->where('status', ConstantController::ACCEPT_DOCTOR)
-                ->orWhere('status', ConstantController::ACCEPT_NURSE)
-                ->orWhere('status', ConstantController::ACCEPT_ANALYSIS)
+                ->where(function ($query) {
+                    $query->where('status', ConstantController::ACCEPT_DOCTOR)
+                          ->orWhere('status', ConstantController::ACCEPT_NURSE)
+                          ->orWhere('status', ConstantController::ACCEPT_ANALYSIS);
+                })
                 ->orderby('id', 'DESC')
                 ->get();
         } elseif (Auth::user()->type == ConstantController::NURSE) {
             $calls = Call::where('nurse_id', Auth::id())
-                ->where('status', ConstantController::ACCEPT_DOCTOR)
-                ->orWhere('status', ConstantController::ACCEPT_NURSE)
-                ->orWhere('status', ConstantController::ACCEPT_ANALYSIS)
+                ->where(function ($query) {
+                    $query->where('status', ConstantController::ACCEPT_DOCTOR)
+                          ->orWhere('status', ConstantController::ACCEPT_NURSE)
+                          ->orWhere('status', ConstantController::ACCEPT_ANALYSIS);
+                })
                 ->orderby('id', 'DESC')
                 ->get();
         } elseif (Auth::user()->type == ConstantController::ANALYSIS) {
             $calls = Call::where('analysis_id', Auth::id())
-                ->where('status', ConstantController::ACCEPT_DOCTOR)
-                ->orWhere('status', ConstantController::ACCEPT_ANALYSIS)
-                ->orWhere('status', ConstantController::ACCEPT_NURSE)
-
+                ->where(function ($query) {
+                    $query->where('status', ConstantController::ACCEPT_DOCTOR)
+                          ->orWhere('status', ConstantController::ACCEPT_ANALYSIS)
+                          ->orWhere('status', ConstantController::ACCEPT_NURSE);
+                })
                 ->orderby('id', 'DESC')
                 ->get();
         } elseif (Auth::user()->type == ConstantController::MANGER) {
             $calls = Call::get();
+        } else {
+            // في حال لم يتحقق أي شرط، يتم إرجاع قائمة فارغة لتجنب الخطأ
+            $calls = collect();
         }
 
         return $this->respondWithCollection(CaseResource::collection($calls));
     }
+
 
     /**
      * Store a newly created resource in storage.
@@ -138,12 +145,12 @@ class CaseController extends Controller
         }
 
        $call = Call::whereId($request->call_id)->first();
-       
+
         $title = 'New Call';
         $body = 'You Have New Call';
         $user = User::find($request->user_id);
         $this->notification->send($user->device_token, $title, $body);
-        
+
         return $this->successStatus();
     }
     /**
@@ -159,12 +166,12 @@ class CaseController extends Controller
             'nurse_id' => $request->user_id
         ]);
 
-       
+
         $title = 'New Call';
         $body = 'You Have New Call';
         $user = User::find($request->user_id);
         $this->notification->send($user->device_token, $title, $body);
-        
+
         return $this->successStatus();
     }
 

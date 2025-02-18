@@ -33,32 +33,31 @@ class CallController extends Controller
             $calls = Call::when($request->filled('date'), function ($query) use ($request) {
                 $query->whereDate('created_at', $request->date);
             })
-            ->orderby('id','DESC')
-            ->get();
+                ->orderby('id', 'DESC')
+                ->get();
+        } elseif (Auth::user()->type == ConstantController::DOCTOR) {
+            $calls = Call::where('doctor_id', Auth::id())
+                ->where('status', ConstantController::PENDING_DOCTOR)
+                ->orderby('id', 'DESC')
+                ->get();
+        } elseif (Auth::user()->type == ConstantController::NURSE) {
+            $calls = Call::where('nurse_id', Auth::id())
+                ->where('status', ConstantController::PENDING_NURSE)
+                ->orderby('id', 'DESC')
+                ->get();
+        } elseif (Auth::user()->type == ConstantController::ANALYSIS) {
+            $calls = Call::where('analysis_id', Auth::id())
+                ->where('status', ConstantController::PENDING_ANALYSIS)
+                ->orderby('id', 'DESC')
+                ->get();
         } else {
-            if (Auth::user()->type == ConstantController::DOCTOR) {
-                $calls = Call::where('doctor_id', Auth::id())
-                    ->where('status', ConstantController::PENDING_DOCTOR)
-                    ->orderby('id','DESC')
-                    ->get();
-            } elseif (Auth::user()->type == ConstantController::NURSE) {
-
-                $calls = Call::where('nurse_id', Auth::id())
-                    ->where('status', ConstantController::PENDING_NURSE)
-                    ->orderby('id','DESC')
-                    ->get();
-                  //  dd( Auth::id());
-            } elseif (Auth::user()->type == ConstantController::ANALYSIS) {
-             
-                $calls = Call::where('analysis_id', Auth::id())
-                    ->where('status', ConstantController::PENDING_ANALYSIS)
-                    ->orderby('id','DESC')
-                    ->get();
-            }
+            // في حالة لم يتم تحديد أي بيانات بناءً على الشروط، نعيد جميع البيانات كمجموعة افتراضية
+            $calls = Call::orderby('id', 'DESC')->get();
         }
 
         return $this->respondWithCollection(CallResource::collection($calls));
     }
+
 
     /**
      * Store a newly created resource in storage.
@@ -76,11 +75,11 @@ class CallController extends Controller
             'description' => $request->description,
             'status' => ConstantController::PENDING_DOCTOR,
         ]);
-        
+
         $title = 'New Call';
         $body = 'You Have New Call';
         $user = User::find($request->doctor_id);
-        if($user->device_token != null){
+        if ($user->device_token != null) {
             $this->notification->send($user->device_token, $title, $body);
         }
 
@@ -96,7 +95,7 @@ class CallController extends Controller
     public function show($id)
     {
         $call = Call::find($id);
-        
+
         if (!$call) return $this->errorStatus();
 
         return $this->respondWithItem(new CallLargeResource($call));
@@ -126,13 +125,13 @@ class CallController extends Controller
      */
     public function accept(Request $request, $id)
     {
-       
+
         if (Auth::user()->type == ConstantController::DOCTOR) {
-            if($request->status == 'reject'){
+            if ($request->status == 'reject') {
                 Call::whereId($id)->update([
                     'status' => 'reject',
                 ]);
-            }else{
+            } else {
 
                 Call::whereId($id)->update([
                     'status' => ConstantController::ACCEPT_DOCTOR,
@@ -148,7 +147,7 @@ class CallController extends Controller
             ]);
         }
 
-       
+
         return $this->successStatus();
     }
 
@@ -164,7 +163,7 @@ class CallController extends Controller
         if ($request->type == ConstantController::ANALYSIS) {
             Call::whereId($request->call_id)->update([
                 'analysis_id' => $request->user_id,
-              //  'status' => ConstantController::PENDING_ANALYSIS
+                //  'status' => ConstantController::PENDING_ANALYSIS
             ]);
         } else {
             Call::whereId($request->call_id)->update([
@@ -174,7 +173,7 @@ class CallController extends Controller
         $title = 'New Call';
         $body = 'You Have New Call';
         $user = User::find($request->user_id);
-        if($user->device_token != null){
+        if ($user->device_token != null) {
             $this->notification->send($user->device_token, $title, $body);
         }
         return $this->successStatus();
